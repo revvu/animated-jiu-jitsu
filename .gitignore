@@ -1,1 +1,20 @@
+# Python
 .venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Blender
+*.blend1
+*.blend2
+
+# Renders (large files)
+renders/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

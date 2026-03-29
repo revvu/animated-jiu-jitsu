@@ -1,11 +1,34 @@
-```markdown
 # Animal Jiu Jitsu - 3D Animation Project
 
-**Project Title:** Little Animals Doing Jiu Jitsu  
-**Description:** A fun, stylized 3D animation project featuring cartoonish animals (e.g., cats, dogs, foxes, or bears) performing jiu jitsu techniques — guard passes, sweeps, submissions (armbars, triangles, rear-naked chokes), rolls, and playful fights.  
+**Project Title:** Little Animals Doing Jiu Jitsu
+**Description:** A fun, stylized 3D animation project featuring cartoonish animals (e.g., cats, dogs, foxes, or bears) performing jiu jitsu techniques — guard passes, sweeps, submissions (armbars, triangles, rear-naked chokes), rolls, and playful fights.
 The goal is to create short looping clips or a mini animated short using procedural/scripted animation in Blender with Python.
 
 **Target Output:** High-quality rendered video clips (MP4) or image sequences, starting with Eevee for fast iteration and moving to nicer final renders via cloud.
+
+---
+
+## MVP Objectives
+
+**Goal:** Create a single 5-10 second animated clip of a cartoon fox performing a shrimping/hip escape drill, fully scripted via Python in Blender 5.1.
+
+### MVP Scope
+1. **Fox Model** - Built from primitives (spheres, cylinders) attached to Rigify rig
+2. **Rigify Quadruped Rig** - Blender's built-in, adapted for fox proportions
+3. **Shrimping Move** - Solo hip escape animation (fundamental BJJ drill)
+4. **Python Animation Script** - Procedural keyframe generation
+5. **Simple Scene** - Flat mat/ground plane, basic 3-point lighting
+6. **Eevee Render Config** - Optimized for CPU preview renders
+
+### Out of Scope (Post-MVP)
+- Second animal / grappling interactions
+- Multiple move library
+- Advanced fur/hair
+- Cloud rendering pipeline
+- Camera animation
+- Sound/music
+
+---
 
 **Tech Stack:**
 - **Primary Tool:** Blender (latest stable version recommended, e.g., 4.x series as of 2026)
