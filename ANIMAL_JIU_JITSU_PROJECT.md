@@ -30,6 +30,56 @@ The goal is to create short looping clips or a mini animated short using procedu
 
 ---
 
+## Quick Start: Watch the Animation
+
+### Step 1: Run the Script
+1. Open **Blender 5.1**
+2. Go to **Scripting** workspace (tab at top of screen)
+3. Click **Open** in the Text Editor panel
+4. Navigate to `scripts/main.py` and open it
+5. Press **Alt+P** (or click **Run Script** button)
+
+This creates the fox, scene, and animation automatically.
+
+### Step 2: Watch in Viewport
+1. Switch to **Layout** workspace
+2. Press **Spacebar** to play the animation
+3. Use mouse to orbit camera (middle-click drag) for different angles
+4. Press **Numpad 0** to see through the render camera
+
+### Step 3: Render a Video (Optional)
+1. Go to **Output Properties** (printer icon in right panel)
+2. Set output path (e.g., `//renders/test/shrimp_`)
+3. Press **Ctrl+F12** or go to **Render > Render Animation**
+4. Find your MP4 in the `renders/test/` folder
+
+### Keyboard Shortcuts
+| Key | Action |
+|-----|--------|
+| Spacebar | Play/pause animation |
+| Shift+Left | Jump to start |
+| Shift+Right | Jump to end |
+| Left/Right | Step frame by frame |
+| Numpad 0 | Camera view |
+| Z | Viewport shading menu |
+
+### Troubleshooting
+
+**"ModuleNotFoundError: No module named 'setup'"**
+
+This happens when Blender can't find the project modules. Fix:
+
+1. Make sure you **Open** the file (not copy-paste):
+   - In Text Editor, click **Text > Open** (or folder icon)
+   - Navigate to `scripts/main.py`
+   - Select and open it
+
+2. The file path must be preserved so Blender knows where to find the other modules.
+
+3. If it still fails, check the Blender console (Window > Toggle System Console on Windows) for the actual path being used.
+
+---
+
 **Tech Stack:**
 - **Primary Tool:** Blender (latest stable version recommended, e.g., 4.x series as of 2026)
 - **Language:** Python (via Blender's `bpy` API)
@@ -183,23 +233,26 @@ Colab is excellent for one-off tests but has session timeouts. SheepIt is better
 
 This setup keeps development fully local and comfortable while delivering pro-looking rendered results for free via cloud farms.
 
-**Project Folder Structure Suggestion:**
+**Project Folder Structure:**
 ```
-animal-jiu-jitsu/
-├── blend/
-│   └── main_scene.blend
+animated-jiu-jitsu/
+├── blend/                    # Blender project files
+│   └── mvp_scene.blend
 ├── scripts/
-│   ├── jiu_jitsu_moves.py
-│   └── render_setup.py
+│   ├── main.py               # Entry point - run this!
+│   ├── core/
+│   │   ├── rig_utils.py      # Bone manipulation helpers
+│   │   └── keyframe_utils.py # Keyframe utilities
+│   ├── moves/
+│   │   └── shrimp.py         # Shrimping animation
+│   └── setup/
+│       ├── scene_setup.py    # Scene, lighting, camera
+│       └── materials.py      # Fox & mat materials
 ├── assets/
-│   └── (textures, references)
+│   └── reference/            # Reference images/videos
 ├── renders/
-│   └── (local tests)
-└── README.md   ← This file
+│   └── test/                 # Local test renders
+└── ANIMAL_JIU_JITSU_PROJECT.md
 ```
 
 Happy coding! This will be a hilarious and satisfying project once the first animal rolls into an armbar.
-
-```
-
-You can start by creating the folder structure, installing Blender, and testing the example script snippet. 

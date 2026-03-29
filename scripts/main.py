@@ -16,10 +16,47 @@ import bpy
 import sys
 import os
 
+# ============================================================
+# PATH SETUP - Required for Blender's Text Editor
+# ============================================================
+# When running from Blender's Text Editor, we need to manually
+# add the scripts directory to Python's path.
+
+def get_script_directory():
+    """Get the directory containing this script."""
+    # Method 1: Try __file__ (works when run as external script)
+    try:
+        return os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        pass
+
+    # Method 2: Get from Blender's text block filepath
+    for text in bpy.data.texts:
+        if text.filepath and 'main.py' in text.filepath:
+            return os.path.dirname(os.path.abspath(text.filepath))
+
+    # Method 3: Fallback - assume standard project structure
+    # Look for common locations
+    possible_paths = [
+        r"C:\Users\Owner\Desktop\animated-jiu-jitsu\scripts",
+        os.path.expanduser("~/Desktop/animated-jiu-jitsu/scripts"),
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+
+    raise RuntimeError(
+        "Could not find scripts directory. "
+        "Please open main.py from File > Open in Blender's Text Editor "
+        "(not copy-pasted) so the filepath is preserved."
+    )
+
 # Add scripts directory to Python path
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = get_script_directory()
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
+
+print(f"Scripts directory: {SCRIPT_DIR}")
 
 # Import project modules
 from setup.scene_setup import setup_scene, configure_eevee_render
