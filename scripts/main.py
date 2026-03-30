@@ -1,80 +1,233 @@
 """
-Animal Jiu Jitsu - Main Entry Point
+Animal Jiu Jitsu - Main Script (Single File Version)
 
-This script is the main entry point for the Animal Jiu Jitsu project.
-Run this in Blender's Text Editor (Alt+P) to set up the scene and
-create the fox shrimping animation.
+This script creates a cartoon fox performing a shrimping/hip escape animation.
+All code is contained in this single file to avoid Blender import issues.
 
 Usage:
-1. Open Blender
+1. Open Blender 5.1
 2. Go to Scripting workspace
-3. Open this file in the Text Editor
+3. Open this file in the Text Editor (Text > Open)
 4. Press Alt+P or click "Run Script"
 """
 
 import bpy
-import sys
-import os
+from mathutils import Euler, Vector
+import math
+
 
 # ============================================================
-# PATH SETUP - Required for Blender's Text Editor
+# HELPER FUNCTIONS
 # ============================================================
-# When running from Blender's Text Editor, we need to manually
-# add the scripts directory to Python's path.
 
-def get_script_directory():
-    """Get the directory containing this script."""
-    # Method 1: Try __file__ (works when run as external script)
+def rad(degrees):
+    """Convert degrees to radians."""
+    return math.radians(degrees)
+
+
+# ============================================================
+# MATERIALS
+# ============================================================
+
+def create_fox_material(name="Fox_Body", color=(0.9, 0.4, 0.1, 1.0), roughness=0.8):
+    """Create a cartoon fox material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+
+    # Principled BSDF
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    bsdf.location = (0, 0)
+    bsdf.inputs['Base Color'].default_value = color
+    bsdf.inputs['Roughness'].default_value = roughness
+    bsdf.inputs['Specular IOR Level'].default_value = 0.3
+
+    # Output
+    output = nodes.new('ShaderNodeOutputMaterial')
+    output.location = (300, 0)
+
+    # Link
+    mat.node_tree.links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+
+    return mat
+
+
+def create_mat_material(name="BJJ_Mat", color=(0.1, 0.3, 0.6, 1.0)):
+    """Create a jiu jitsu mat material."""
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+
+    # Principled BSDF (simplified - no checker pattern to avoid complexity)
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    bsdf.location = (0, 0)
+    bsdf.inputs['Base Color'].default_value = color
+    bsdf.inputs['Roughness'].default_value = 0.9  # Matte rubber look
+
+    # Output
+    output = nodes.new('ShaderNodeOutputMaterial')
+    output.location = (300, 0)
+
+    mat.node_tree.links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+
+    return mat
+
+
+def get_all_fox_materials():
+    """Create and return all fox materials."""
+    return {
+        'body': create_fox_material("Fox_Body", (0.9, 0.4, 0.1, 1.0)),
+        'white': create_fox_material("Fox_White", (0.95, 0.92, 0.85, 1.0)),
+        'dark': create_fox_material("Fox_Dark", (0.15, 0.08, 0.02, 1.0)),
+        'nose': create_fox_material("Fox_Nose", (0.02, 0.02, 0.02, 1.0), 0.3),
+    }
+
+
+# ============================================================
+# SCENE SETUP
+# ============================================================
+
+def clear_default_scene():
+    """Remove default cube, light, and camera if they exist."""
+    default_objects = ['Cube', 'Light', 'Camera']
+    for name in default_objects:
+        if name in bpy.data.objects:
+            bpy.data.objects.remove(bpy.data.objects[name], do_unlink=True)
+
+
+def create_ground_plane(size=10.0, name="Mat"):
+    """Create a ground plane (jiu jitsu mat)."""
+    bpy.ops.mesh.primitive_plane_add(size=size, location=(0, 0, 0))
+    plane = bpy.context.active_object
+    plane.name = name
+
+    mat = create_mat_material()
+    plane.data.materials.append(mat)
+
+    return plane
+
+
+def setup_lighting():
+    """Create 3-point lighting setup for the scene."""
+    # Key light (main)
+    bpy.ops.object.light_add(type='AREA', location=(4, -3, 5))
+    key_light = bpy.context.active_object
+    key_light.name = "Key_Light"
+    key_light.data.energy = 500
+    key_light.data.size = 3
+    key_light.data.color = (1.0, 0.95, 0.9)
+
+    direction = key_light.location.normalized()
+    key_light.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+
+    # Fill light (softer)
+    bpy.ops.object.light_add(type='AREA', location=(-3, -2, 3))
+    fill_light = bpy.context.active_object
+    fill_light.name = "Fill_Light"
+    fill_light.data.energy = 200
+    fill_light.data.size = 4
+    fill_light.data.color = (0.9, 0.95, 1.0)
+
+    direction = fill_light.location.normalized()
+    fill_light.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+
+    # Rim light (back)
+    bpy.ops.object.light_add(type='AREA', location=(0, 4, 3))
+    rim_light = bpy.context.active_object
+    rim_light.name = "Rim_Light"
+    rim_light.data.energy = 300
+    rim_light.data.size = 2
+
+    direction = rim_light.location.normalized()
+    rim_light.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+
+
+def setup_camera(location=(5, -5, 3), target=(0, 0, 0.5)):
+    """Create and position the camera."""
+    bpy.ops.object.camera_add(location=location)
+    camera = bpy.context.active_object
+    camera.name = "Main_Camera"
+
+    # Create empty target for camera to track
+    bpy.ops.object.empty_add(type='PLAIN_AXES', location=target)
+    target_empty = bpy.context.active_object
+    target_empty.name = "Camera_Target"
+
+    # Add track-to constraint
+    constraint = camera.constraints.new(type='TRACK_TO')
+    constraint.target = target_empty
+    constraint.track_axis = 'TRACK_NEGATIVE_Z'
+    constraint.up_axis = 'UP_Y'
+
+    # Set as active camera
+    bpy.context.scene.camera = camera
+
+    return camera
+
+
+def configure_eevee_render(resolution_x=1280, resolution_y=720, fps=24, samples=64):
+    """Configure Eevee render settings."""
+    scene = bpy.context.scene
+
+    # Set render engine (try EEVEE_NEXT for Blender 4+, fallback to EEVEE)
     try:
-        return os.path.dirname(os.path.abspath(__file__))
-    except NameError:
-        pass
+        scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    except:
+        scene.render.engine = 'BLENDER_EEVEE'
 
-    # Method 2: Get from Blender's text block filepath
-    for text in bpy.data.texts:
-        if text.filepath and 'main.py' in text.filepath:
-            return os.path.dirname(os.path.abspath(text.filepath))
+    # Resolution
+    scene.render.resolution_x = resolution_x
+    scene.render.resolution_y = resolution_y
+    scene.render.resolution_percentage = 100
 
-    # Method 3: Fallback - assume standard project structure
-    # Look for common locations
-    possible_paths = [
-        r"C:\Users\Owner\Desktop\animated-jiu-jitsu\scripts",
-        os.path.expanduser("~/Desktop/animated-jiu-jitsu/scripts"),
-    ]
-    for path in possible_paths:
-        if os.path.exists(path):
-            return path
+    # Frame rate
+    scene.render.fps = fps
 
-    raise RuntimeError(
-        "Could not find scripts directory. "
-        "Please open main.py from File > Open in Blender's Text Editor "
-        "(not copy-pasted) so the filepath is preserved."
-    )
+    # Eevee settings
+    eevee = scene.eevee
+    eevee.taa_render_samples = samples
+    eevee.taa_samples = 16
 
-# Add scripts directory to Python path
-SCRIPT_DIR = get_script_directory()
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
+    # Output settings
+    scene.render.image_settings.file_format = 'FFMPEG'
+    scene.render.ffmpeg.format = 'MPEG4'
+    scene.render.ffmpeg.codec = 'H264'
+    scene.render.ffmpeg.constant_rate_factor = 'MEDIUM'
 
-print(f"Scripts directory: {SCRIPT_DIR}")
+    # Animation range
+    scene.frame_start = 1
+    scene.frame_end = fps * 10
 
-# Import project modules
-from setup.scene_setup import setup_scene, configure_eevee_render
-from setup.materials import get_all_fox_materials
-from moves.shrimp import create_shrimp_animation
+    # Background color
+    scene.world = bpy.data.worlds.get('World') or bpy.data.worlds.new('World')
+    scene.world.use_nodes = True
+    bg_node = scene.world.node_tree.nodes.get('Background')
+    if bg_node:
+        bg_node.inputs['Color'].default_value = (0.15, 0.18, 0.22, 1.0)
+
+    print(f"Render configured: {resolution_x}x{resolution_y} @ {fps}fps")
 
 
-def create_fox_primitive(name: str = "FoxRig") -> bpy.types.Object:
-    """
-    Create a simple fox from primitives with a basic armature.
+def setup_scene():
+    """Full scene setup."""
+    clear_default_scene()
+    create_ground_plane()
+    setup_lighting()
+    setup_camera()
+    configure_eevee_render()
+    print("Scene setup complete!")
 
-    This creates a placeholder fox using basic shapes that can be
-    animated immediately. For the MVP, this demonstrates the concept
-    before creating more detailed geometry.
 
-    Returns:
-        The armature object
-    """
+# ============================================================
+# FOX CREATION
+# ============================================================
+
+def create_fox_primitive(name="FoxRig"):
+    """Create a simple fox from primitives with a basic armature."""
     print("Creating fox from primitives...")
 
     # Create armature
@@ -231,7 +384,7 @@ def _create_fox_body(armature):
         ear.name = f"Fox_Ear_{side}"
         ear.data.materials.append(materials['body'])
 
-    # Tail (tapered cylinder-ish)
+    # Tail (tapered sphere)
     bpy.ops.mesh.primitive_uv_sphere_add(
         radius=0.08,
         location=(0, -0.2, 0.35),
@@ -249,14 +402,14 @@ def _create_fox_body(armature):
         (-0.12, 0.7, 0.1, 'Front_R'),
     ]
 
-    for x, y, z, name in leg_positions:
+    for x, y, z, leg_name in leg_positions:
         bpy.ops.mesh.primitive_cylinder_add(
             radius=0.04,
             depth=0.4,
             location=(x, y, z)
         )
         leg = bpy.context.active_object
-        leg.name = f"Fox_Leg_{name}"
+        leg.name = f"Fox_Leg_{leg_name}"
         leg.data.materials.append(materials['dark'])
 
     # Parent all mesh objects to armature
@@ -272,15 +425,194 @@ def _create_fox_body(armature):
     bpy.ops.object.select_all(action='DESELECT')
 
 
-def run_mvp():
-    """
-    Main function to run the MVP demo.
+# ============================================================
+# SHRIMPING ANIMATION
+# ============================================================
 
-    Creates:
-    - Scene setup (lighting, camera, ground)
-    - Fox character with simple rig
-    - Shrimping animation (2 reps)
-    """
+def shrimp_escape(rig_name, start_frame=1, fps=24, direction='RIGHT'):
+    """Create a shrimping/hip escape animation on a quadruped rig."""
+    rig = bpy.data.objects.get(rig_name)
+    if rig is None:
+        print(f"Error: Rig '{rig_name}' not found")
+        return start_frame
+
+    # Ensure rig is selected and active
+    bpy.context.view_layer.objects.active = rig
+    rig.select_set(True)
+
+    # Animation timing
+    phase_duration = int(fps * 0.8)
+
+    frame = start_frame
+    dir_mult = 1 if direction == 'RIGHT' else -1
+
+    # Phase 1: Guard position
+    frame = _pose_guard(rig, frame, phase_duration)
+
+    # Phase 2: Bridge
+    frame = _pose_bridge(rig, frame, phase_duration, dir_mult)
+
+    # Phase 3: Hip escape
+    frame = _pose_escape(rig, frame, phase_duration, dir_mult)
+
+    # Phase 4: Reset to guard
+    frame = _pose_guard(rig, frame, phase_duration)
+
+    print(f"Shrimp animation created: frames {start_frame} to {frame}")
+    return frame
+
+
+def _pose_guard(rig, start_frame, duration):
+    """Set guard position pose - on back with legs bent."""
+    scene = bpy.context.scene
+    scene.frame_set(start_frame)
+
+    bones = rig.pose.bones
+
+    # Root on back
+    if 'root' in bones:
+        bones['root'].rotation_mode = 'XYZ'
+        bones['root'].rotation_euler = Euler((rad(180), 0, 0))
+        bones['root'].location = Vector((0, 0, 0.3))
+        bones['root'].keyframe_insert('rotation_euler', frame=start_frame)
+        bones['root'].keyframe_insert('location', frame=start_frame)
+
+    # Spine slightly curved
+    for spine_name in ['spine_fk', 'spine_fk.001', 'spine_fk.002']:
+        if spine_name in bones:
+            bones[spine_name].rotation_mode = 'XYZ'
+            bones[spine_name].rotation_euler = Euler((rad(-10), 0, 0))
+            bones[spine_name].keyframe_insert('rotation_euler', frame=start_frame)
+
+    # Legs bent up
+    for side in ['.L', '.R']:
+        thigh = f'thigh_fk{side}'
+        shin = f'shin_fk{side}'
+
+        if thigh in bones:
+            bones[thigh].rotation_mode = 'XYZ'
+            bones[thigh].rotation_euler = Euler((rad(-60), 0, 0))
+            bones[thigh].keyframe_insert('rotation_euler', frame=start_frame)
+
+        if shin in bones:
+            bones[shin].rotation_mode = 'XYZ'
+            bones[shin].rotation_euler = Euler((rad(90), 0, 0))
+            bones[shin].keyframe_insert('rotation_euler', frame=start_frame)
+
+    # Head stays oriented
+    if 'head' in bones:
+        bones['head'].rotation_mode = 'XYZ'
+        bones['head'].rotation_euler = Euler((rad(-180), 0, 0))
+        bones['head'].keyframe_insert('rotation_euler', frame=start_frame)
+
+    return start_frame + duration
+
+
+def _pose_bridge(rig, start_frame, duration, direction):
+    """Bridge position - hips raised, foot planted."""
+    scene = bpy.context.scene
+    scene.frame_set(start_frame)
+
+    bones = rig.pose.bones
+
+    # Root bridges up
+    if 'root' in bones:
+        bones['root'].rotation_mode = 'XYZ'
+        bones['root'].rotation_euler = Euler((rad(160), 0, rad(15 * direction)))
+        bones['root'].location = Vector((0, 0, 0.6))
+        bones['root'].keyframe_insert('rotation_euler', frame=start_frame)
+        bones['root'].keyframe_insert('location', frame=start_frame)
+
+    plant_side = '.R' if direction > 0 else '.L'
+    extend_side = '.L' if direction > 0 else '.R'
+
+    # Planted leg
+    if f'thigh_fk{plant_side}' in bones:
+        bones[f'thigh_fk{plant_side}'].rotation_euler = Euler((rad(-80), 0, 0))
+        bones[f'thigh_fk{plant_side}'].keyframe_insert('rotation_euler', frame=start_frame)
+
+    if f'shin_fk{plant_side}' in bones:
+        bones[f'shin_fk{plant_side}'].rotation_euler = Euler((rad(80), 0, 0))
+        bones[f'shin_fk{plant_side}'].keyframe_insert('rotation_euler', frame=start_frame)
+
+    # Extended leg
+    if f'thigh_fk{extend_side}' in bones:
+        bones[f'thigh_fk{extend_side}'].rotation_euler = Euler((rad(-30), 0, rad(-20 * direction)))
+        bones[f'thigh_fk{extend_side}'].keyframe_insert('rotation_euler', frame=start_frame)
+
+    if f'shin_fk{extend_side}' in bones:
+        bones[f'shin_fk{extend_side}'].rotation_euler = Euler((rad(20), 0, 0))
+        bones[f'shin_fk{extend_side}'].keyframe_insert('rotation_euler', frame=start_frame)
+
+    # Head maintains orientation
+    if 'head' in bones:
+        bones['head'].rotation_euler = Euler((rad(-160), 0, rad(-15 * direction)))
+        bones['head'].keyframe_insert('rotation_euler', frame=start_frame)
+
+    return start_frame + duration
+
+
+def _pose_escape(rig, start_frame, duration, direction):
+    """Escape position - hips shot back, on side."""
+    scene = bpy.context.scene
+    scene.frame_set(start_frame)
+
+    bones = rig.pose.bones
+
+    # Root rotated to side, hips back
+    if 'root' in bones:
+        bones['root'].rotation_mode = 'XYZ'
+        bones['root'].rotation_euler = Euler((rad(120), 0, rad(45 * direction)))
+        bones['root'].location = Vector((-0.3 * direction, -0.5, 0.4))
+        bones['root'].keyframe_insert('rotation_euler', frame=start_frame)
+        bones['root'].keyframe_insert('location', frame=start_frame)
+
+    # Spine twists
+    for i, spine_name in enumerate(['spine_fk', 'spine_fk.001', 'spine_fk.002']):
+        if spine_name in bones:
+            twist = rad(-20 * direction) * (i + 1) / 3
+            bones[spine_name].rotation_euler = Euler((rad(-15), twist, 0))
+            bones[spine_name].keyframe_insert('rotation_euler', frame=start_frame)
+
+    # Both legs extend
+    for side in ['.L', '.R']:
+        if f'thigh_fk{side}' in bones:
+            bones[f'thigh_fk{side}'].rotation_euler = Euler((rad(-20), 0, rad(-15 * direction)))
+            bones[f'thigh_fk{side}'].keyframe_insert('rotation_euler', frame=start_frame)
+
+        if f'shin_fk{side}' in bones:
+            bones[f'shin_fk{side}'].rotation_euler = Euler((rad(30), 0, 0))
+            bones[f'shin_fk{side}'].keyframe_insert('rotation_euler', frame=start_frame)
+
+    # Head looks toward escape direction
+    if 'head' in bones:
+        bones['head'].rotation_euler = Euler((rad(-120), rad(20 * direction), rad(-45 * direction)))
+        bones['head'].keyframe_insert('rotation_euler', frame=start_frame)
+
+    return start_frame + duration
+
+
+def create_shrimp_animation(rig_name, repetitions=2, fps=24):
+    """Create a full shrimping drill with multiple reps."""
+    frame = 1
+
+    for i in range(repetitions):
+        direction = 'RIGHT' if i % 2 == 0 else 'LEFT'
+        frame = shrimp_escape(rig_name, frame, fps, direction)
+
+    bpy.context.scene.frame_start = 1
+    bpy.context.scene.frame_end = frame
+
+    print(f"Created shrimping drill: {repetitions} reps, {frame} total frames")
+    return frame
+
+
+# ============================================================
+# MAIN ENTRY POINT
+# ============================================================
+
+def run_mvp():
+    """Main function to run the MVP demo."""
     print("\n" + "="*50)
     print("ANIMAL JIU JITSU - MVP")
     print("="*50 + "\n")
@@ -302,7 +634,7 @@ def run_mvp():
         resolution_x=1280,
         resolution_y=720,
         fps=24,
-        samples=32  # Lower samples for faster preview
+        samples=32
     )
 
     # Set output path
@@ -320,5 +652,4 @@ def run_mvp():
 
 
 # Run when executed
-if __name__ == "__main__":
-    run_mvp()
+run_mvp()
